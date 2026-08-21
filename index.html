@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎣 Fresh Catch — Feedback recorded</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+    }
+    .card {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 40px 32px;
+      max-width: 460px;
+      width: 100%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+      text-align: center;
+    }
+    .emoji { font-size: 56px; margin-bottom: 12px; }
+    h1 { margin: 0 0 8px 0; font-size: 22px; font-weight: 700; }
+    p { margin: 8px 0; font-size: 15px; color: #475569; line-height: 1.5; }
+    .domain { font-weight: 600; color: #0f172a; }
+    .status { font-size: 13px; color: #94a3b8; margin-top: 20px; }
+    .error { color: #b91c1c; }
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid #e2e8f0; border-top-color: #2563eb;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="emoji" id="emoji">🎣</div>
+    <h1 id="title">Recording your feedback…</h1>
+    <p id="message"><span class="spinner"></span>Just a moment.</p>
+    <p class="status" id="status"></p>
+  </div>
+
+  <script>
+    const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-c952284c';
+
+    const params = new URLSearchParams(window.location.search);
+    const rating = params.get('rating');
+    const domain = params.get('domain');
+    const rep = params.get('rep');
+
+    const validRatings = ['good', 'bad', 'opportunity', 'not_relevant'];
+
+    const messages = {
+      good: { emoji: '👍', title: 'Good fit logged!', body: 'Tomorrow\'s Fresh Catch will find more companies like <span class="domain">' + domain + '</span>.' },
+      bad: { emoji: '👎', title: 'Bad fit logged.', body: 'We\'ll deprioritize this pattern.' },
+      opportunity: { emoji: '🎯', title: 'Opportunity logged!', body: 'This is the strongest positive signal we track. Nice work.' },
+      not_relevant: { emoji: '🚫', title: 'Marked not relevant.', body: '<span class="domain">' + domain + '</span> won\'t surface again.' }
+    };
+
+    function render(state, msg) {
+      const emoji = document.getElementById('emoji');
+      const title = document.getElementById('title');
+      const message = document.getElementById('message');
+      const status = document.getElementById('status');
+      if (state === 'success') {
+        const m = messages[rating];
+        emoji.textContent = m.emoji;
+        title.textContent = m.title;
+        message.innerHTML = m.body;
+        status.textContent = 'You can close this tab.';
+      } else if (state === 'error') {
+        emoji.textContent = '⚠️';
+        title.textContent = 'Something went wrong';
+        message.innerHTML = '<span class="error">' + msg + '</span>';
+        status.textContent = 'Feedback was not recorded. Please try again.';
+      }
+    }
+
+    if (!rating || !domain || !rep || !validRatings.includes(rating)) {
+      render('error', 'Missing or invalid parameters in the link.');
+    } else {
+      fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: rating, domain: domain, rep: rep })
+      })
+      .then(function(resp) {
+        if (resp.ok) {
+          render('success');
+        } else {
+          render('error', 'Webhook returned status ' + resp.status + '.');
+        }
+      })
+      .catch(function(err) {
+        render('error', 'Network error: ' + err.message);
+      });
+    }
+  </script>
+</body>
+</html>
