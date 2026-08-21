@@ -35,11 +35,7 @@
     .c-bad { background: #fee2e2; color: #991b1b; }
     .c-opp { background: #fef3c7; color: #92400e; }
     .c-nr { background: #f3f4f6; color: #374151; }
-    .reset-btn {
-      margin-top: 16px; background: transparent; border: none;
-      color: #94a3b8; font-size: 11px; cursor: pointer; text-decoration: underline;
-    }
-    .scope-note { font-size: 10px; color: #cbd5e1; margin-top: 8px; }
+    .scope-note { font-size: 10px; color: #cbd5e1; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -49,44 +45,49 @@
     <p id="message">Click a feedback button in your daily Fresh Catch email to record a rating.</p>
     <p class="status" id="status"></p>
     <div class="counters">
-      <div class="counters-title">Your feedback clicks so far</div>
+      <div class="counters-title">Team feedback clicks — all reps</div>
       <div class="counter-grid">
-        <div class="counter c-good"><div class="counter-num" id="c-good">0</div><div class="counter-label">👍 Good</div></div>
-        <div class="counter c-bad"><div class="counter-num" id="c-bad">0</div><div class="counter-label">👎 Bad</div></div>
-        <div class="counter c-opp"><div class="counter-num" id="c-opp">0</div><div class="counter-label">🎯 Opp</div></div>
-        <div class="counter c-nr"><div class="counter-num" id="c-nr">0</div><div class="counter-label">🚫 N/R</div></div>
+        <div class="counter c-good"><div class="counter-num" id="c-good">—</div><div class="counter-label">👍 Good</div></div>
+        <div class="counter c-bad"><div class="counter-num" id="c-bad">—</div><div class="counter-label">👎 Bad</div></div>
+        <div class="counter c-opp"><div class="counter-num" id="c-opp">—</div><div class="counter-label">🎯 Opp</div></div>
+        <div class="counter c-nr"><div class="counter-num" id="c-nr">—</div><div class="counter-label">🚫 N/R</div></div>
       </div>
-      <button class="reset-btn" onclick="resetCounters()">reset counters</button>
-      <div class="scope-note">Counts stored in this browser only — testing view.</div>
+      <div class="scope-note">Shared across all reps. Updates when anyone clicks a feedback button.</div>
     </div>
   </div>
 
   <script>
     const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-c952284c';
-    const STORAGE_KEY = 'freshCatchCounters';
+    const NAMESPACE = 'freshcatch-couchbase';
+    const COUNTER_BASE = 'https://api.countapi.xyz';
 
-    function loadCounters() {
-      try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) return JSON.parse(raw); } catch (e) {}
-      return { good: 0, bad: 0, opportunity: 0, not_relevant: 0 };
+    function counterUrl(action, rating) {
+      return COUNTER_BASE + '/' + action + '/' + NAMESPACE + '/' + rating;
     }
-    function saveCounters(c) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); } catch (e) {} }
-    function renderCounters() {
-      const c = loadCounters();
-      document.getElementById('c-good').textContent = c.good;
-      document.getElementById('c-bad').textContent = c.bad;
-      document.getElementById('c-opp').textContent = c.opportunity;
-      document.getElementById('c-nr').textContent = c.not_relevant;
+
+    function refreshCounters() {
+      const ratings = ['good', 'bad', 'opportunity', 'not_relevant'];
+      const ids = { good: 'c-good', bad: 'c-bad', opportunity: 'c-opp', not_relevant: 'c-nr' };
+      ratings.forEach(function(r) {
+        fetch(counterUrl('get', r))
+          .then(function(resp) { return resp.json(); })
+          .then(function(data) {
+            document.getElementById(ids[r]).textContent = data.value || 0;
+          })
+          .catch(function() {
+            document.getElementById(ids[r]).textContent = '?';
+          });
+      });
     }
+
     function incrementCounter(rating) {
-      const c = loadCounters();
-      c[rating] = (c[rating] || 0) + 1;
-      saveCounters(c); renderCounters();
-    }
-    function resetCounters() {
-      if (confirm('Reset all counters to zero?')) {
-        saveCounters({ good: 0, bad: 0, opportunity: 0, not_relevant: 0 });
-        renderCounters();
-      }
+      const ids = { good: 'c-good', bad: 'c-bad', opportunity: 'c-opp', not_relevant: 'c-nr' };
+      fetch(counterUrl('hit', rating))
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+          document.getElementById(ids[rating]).textContent = data.value;
+        })
+        .catch(function() {});
     }
 
     const messages = {
@@ -96,7 +97,7 @@
       not_relevant: { emoji: '🚫', title: 'Marked not relevant.', body: 'This pattern won\'t surface again.' }
     };
 
-    renderCounters();
+    refreshCounters();
 
     const params = new URLSearchParams(window.location.search);
     const rating = params.get('rating');
@@ -112,6 +113,8 @@
         body: JSON.stringify({ rating: rating, domain: domain, rep: rep })
       }).catch(function() {});
 
+      incrementCounter(rating);
+
       const m = messages[rating];
       document.getElementById('emoji').textContent = m.emoji;
       document.getElementById('title').textContent = m.title;
@@ -119,7 +122,6 @@
       if (rating === 'good') bodyText += domain + '.';
       document.getElementById('message').innerHTML = bodyText;
       document.getElementById('status').textContent = 'You can close this tab.';
-      incrementCounter(rating);
     }
   </script>
 </body>
