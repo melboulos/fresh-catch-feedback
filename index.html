@@ -9,22 +9,13 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
       color: #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 24px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; margin: 0; padding: 24px;
     }
     .card {
-      background: white;
-      border: 1px solid #e2e8f0;
-      border-radius: 12px;
-      padding: 40px 32px;
-      max-width: 460px;
-      width: 100%;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-      text-align: center;
+      background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 40px 32px; max-width: 520px; width: 100%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center;
     }
     .emoji { font-size: 56px; margin-bottom: 12px; }
     h1 { margin: 0 0 8px 0; font-size: 22px; font-weight: 700; }
@@ -39,6 +30,32 @@
       vertical-align: middle; margin-right: 8px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .counters {
+      margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0;
+    }
+    .counters-title {
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+      color: #94a3b8; margin-bottom: 12px; font-weight: 600;
+    }
+    .counter-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    }
+    .counter {
+      padding: 12px 8px; border-radius: 8px; text-align: center;
+    }
+    .counter-num { font-size: 22px; font-weight: 700; line-height: 1; }
+    .counter-label { font-size: 11px; margin-top: 4px; opacity: 0.85; }
+    .c-good { background: #dcfce7; color: #166534; }
+    .c-bad { background: #fee2e2; color: #991b1b; }
+    .c-opp { background: #fef3c7; color: #92400e; }
+    .c-nr { background: #f3f4f6; color: #374151; }
+    .reset-btn {
+      margin-top: 16px; background: transparent; border: none;
+      color: #94a3b8; font-size: 11px; cursor: pointer;
+      text-decoration: underline;
+    }
+    .reset-btn:hover { color: #475569; }
+    .scope-note { font-size: 10px; color: #cbd5e1; margin-top: 8px; }
   </style>
 </head>
 <body>
@@ -47,16 +64,74 @@
     <h1 id="title">Recording your feedback…</h1>
     <p id="message"><span class="spinner"></span>Just a moment.</p>
     <p class="status" id="status"></p>
+
+    <div class="counters">
+      <div class="counters-title">Your feedback clicks so far</div>
+      <div class="counter-grid">
+        <div class="counter c-good">
+          <div class="counter-num" id="c-good">0</div>
+          <div class="counter-label">👍 Good</div>
+        </div>
+        <div class="counter c-bad">
+          <div class="counter-num" id="c-bad">0</div>
+          <div class="counter-label">👎 Bad</div>
+        </div>
+        <div class="counter c-opp">
+          <div class="counter-num" id="c-opp">0</div>
+          <div class="counter-label">🎯 Opp</div>
+        </div>
+        <div class="counter c-nr">
+          <div class="counter-num" id="c-nr">0</div>
+          <div class="counter-label">🚫 N/R</div>
+        </div>
+      </div>
+      <button class="reset-btn" onclick="resetCounters()">reset counters</button>
+      <div class="scope-note">Counts are stored in this browser only — testing view.</div>
+    </div>
   </div>
 
   <script>
     const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-c952284c';
+    const STORAGE_KEY = 'freshCatchCounters';
+
+    function loadCounters() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch (e) {}
+      return { good: 0, bad: 0, opportunity: 0, not_relevant: 0 };
+    }
+
+    function saveCounters(c) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); } catch (e) {}
+    }
+
+    function renderCounters() {
+      const c = loadCounters();
+      document.getElementById('c-good').textContent = c.good;
+      document.getElementById('c-bad').textContent = c.bad;
+      document.getElementById('c-opp').textContent = c.opportunity;
+      document.getElementById('c-nr').textContent = c.not_relevant;
+    }
+
+    function incrementCounter(rating) {
+      const c = loadCounters();
+      c[rating] = (c[rating] || 0) + 1;
+      saveCounters(c);
+      renderCounters();
+    }
+
+    function resetCounters() {
+      if (confirm('Reset all counters to zero?')) {
+        saveCounters({ good: 0, bad: 0, opportunity: 0, not_relevant: 0 });
+        renderCounters();
+      }
+    }
 
     const params = new URLSearchParams(window.location.search);
     const rating = params.get('rating');
     const domain = params.get('domain');
     const rep = params.get('rep');
-
     const validRatings = ['good', 'bad', 'opportunity', 'not_relevant'];
 
     const messages = {
@@ -71,7 +146,12 @@
       const title = document.getElementById('title');
       const message = document.getElementById('message');
       const status = document.getElementById('status');
-      if (state === 'success') {
+      if (state === 'idle') {
+        emoji.textContent = '🎣';
+        title.textContent = 'Fresh Catch feedback';
+        message.innerHTML = 'Click a feedback button in your daily Fresh Catch email to record a rating.';
+        status.textContent = '';
+      } else if (state === 'success') {
         const m = messages[rating];
         emoji.textContent = m.emoji;
         title.textContent = m.title;
@@ -85,7 +165,11 @@
       }
     }
 
-    if (!rating || !domain || !rep || !validRatings.includes(rating)) {
+    renderCounters();
+
+    if (!rating && !domain && !rep) {
+      render('idle');
+    } else if (!rating || !domain || !rep || !validRatings.includes(rating)) {
       render('error', 'Missing or invalid parameters in the link.');
     } else {
       fetch(WEBHOOK_URL, {
@@ -95,6 +179,7 @@
       })
       .then(function(resp) {
         if (resp.ok) {
+          incrementCounter(rating);
           render('success');
         } else {
           render('error', 'Webhook returned status ' + resp.status + '.');
