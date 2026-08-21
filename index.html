@@ -1,7 +1,3 @@
-OK, that message ("Feedback was not recorded. Please try again.") only appears in the render('error', ...) path — which means the .catch() block is firing. Under no-cors, that shouldn't happen normally.
-
-Let me be concrete. Here's the entire final index.html — copy this exactly, replacing everything in your GitHub file. This has no-cors and a slightly friendlier flow.
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -109,15 +105,13 @@ Let me be concrete. Here's the entire final index.html — copy this exactly, re
     const validRatings = ['good', 'bad', 'opportunity', 'not_relevant'];
 
     if (rating && validRatings.includes(rating) && domain && rep) {
-      // Fire the webhook. no-cors means we can't read the response, but the POST goes through.
       fetch(WEBHOOK_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rating: rating, domain: domain, rep: rep })
-      }).catch(function() { /* swallow — no-cors always resolves, but be safe */ });
+      }).catch(function() {});
 
-      // Optimistically show success and bump the counter.
       const m = messages[rating];
       document.getElementById('emoji').textContent = m.emoji;
       document.getElementById('title').textContent = m.title;
