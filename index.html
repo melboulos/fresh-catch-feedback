@@ -1,128 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎣 Fresh Catch — Feedback</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background: linear-gradient(180deg, #fafafa 0%, #ffffff 100%);
-      color: #0f172a;
-      display: flex; align-items: center; justify-content: center;
-      min-height: 100vh; margin: 0; padding: 24px;
-    }
-    .card {
-      background: white; border: 1px solid #e2e8f0; border-radius: 12px;
-      padding: 40px 32px; max-width: 520px; width: 100%;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center;
-    }
-    .emoji { font-size: 56px; margin-bottom: 12px; }
-    h1 { margin: 0 0 8px 0; font-size: 22px; font-weight: 700; }
-    p { margin: 8px 0; font-size: 15px; color: #475569; line-height: 1.5; }
-    .domain { font-weight: 600; color: #0f172a; }
-    .status { font-size: 13px; color: #94a3b8; margin-top: 20px; }
-    .counters { margin-top: 32px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
-    .counters-title {
-      font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
-      color: #94a3b8; margin-bottom: 12px; font-weight: 600;
-    }
-    .counter-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-    .counter { padding: 12px 8px; border-radius: 8px; text-align: center; }
-    .counter-num { font-size: 22px; font-weight: 700; line-height: 1; }
-    .counter-label { font-size: 11px; margin-top: 4px; opacity: 0.85; }
-    .c-good { background: #dcfce7; color: #166534; }
-    .c-bad { background: #fee2e2; color: #991b1b; }
-    .c-opp { background: #fef3c7; color: #92400e; }
-    .c-nr { background: #f3f4f6; color: #374151; }
-    .scope-note { font-size: 10px; color: #cbd5e1; margin-top: 12px; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎣 Fresh Catch — Feedback</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #fafafa; color: #0f172a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px; }
+  .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 40px 32px; max-width: 480px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center; }
+  .emoji { font-size: 56px; margin-bottom: 12px; }
+  h1 { margin: 0 0 8px 0; font-size: 22px; font-weight: 700; }
+  p { margin: 8px 0; font-size: 15px; color: #475569; line-height: 1.5; }
+  .highlight { font-weight: 600; color: #0f172a; }
+  .status { font-size: 13px; color: #94a3b8; margin-top: 20px; }
+</style>
 </head>
 <body>
-  <div class="card">
-    <div class="emoji" id="emoji">🎣</div>
-    <h1 id="title">Fresh Catch feedback</h1>
-    <p id="message">Click a feedback button in your daily Fresh Catch email to record a rating.</p>
-    <p class="status" id="status"></p>
-    <div class="counters">
-      <div class="counters-title">Team feedback clicks — all reps</div>
-      <div class="counter-grid">
-        <div class="counter c-good"><div class="counter-num" id="c-good">—</div><div class="counter-label">👍 Good</div></div>
-        <div class="counter c-bad"><div class="counter-num" id="c-bad">—</div><div class="counter-label">👎 Bad</div></div>
-        <div class="counter c-opp"><div class="counter-num" id="c-opp">—</div><div class="counter-label">🎯 Opp</div></div>
-        <div class="counter c-nr"><div class="counter-num" id="c-nr">—</div><div class="counter-label">🚫 N/R</div></div>
-      </div>
-      <div class="scope-note">Shared across all reps. Updates when anyone clicks a feedback button.</div>
-    </div>
-  </div>
-
-  <script>
-    const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-c952284c';
-    const NAMESPACE = 'freshcatch-couchbase';
-    const COUNTER_BASE = 'https://api.countapi.xyz';
-
-    function counterUrl(action, rating) {
-      return COUNTER_BASE + '/' + action + '/' + NAMESPACE + '/' + rating;
-    }
-
-    function refreshCounters() {
-      const ratings = ['good', 'bad', 'opportunity', 'not_relevant'];
-      const ids = { good: 'c-good', bad: 'c-bad', opportunity: 'c-opp', not_relevant: 'c-nr' };
-      ratings.forEach(function(r) {
-        fetch(counterUrl('get', r))
-          .then(function(resp) { return resp.json(); })
-          .then(function(data) {
-            document.getElementById(ids[r]).textContent = data.value || 0;
-          })
-          .catch(function() {
-            document.getElementById(ids[r]).textContent = '?';
-          });
-      });
-    }
-
-    function incrementCounter(rating) {
-      const ids = { good: 'c-good', bad: 'c-bad', opportunity: 'c-opp', not_relevant: 'c-nr' };
-      fetch(counterUrl('hit', rating))
-        .then(function(resp) { return resp.json(); })
-        .then(function(data) {
-          document.getElementById(ids[rating]).textContent = data.value;
-        })
-        .catch(function() {});
-    }
-
-    const messages = {
-      good: { emoji: '👍', title: 'Good fit logged!', body: 'Tomorrow\'s Fresh Catch will find more companies like ' },
-      bad: { emoji: '👎', title: 'Bad fit logged.', body: 'We\'ll deprioritize this pattern.' },
-      opportunity: { emoji: '🎯', title: 'Opportunity logged!', body: 'Strongest positive signal we track. Nice work.' },
-      not_relevant: { emoji: '🚫', title: 'Marked not relevant.', body: 'This pattern won\'t surface again.' }
-    };
-
-    refreshCounters();
-
-    const params = new URLSearchParams(window.location.search);
-    const rating = params.get('rating');
-    const domain = params.get('domain');
-    const rep = params.get('rep');
-    const validRatings = ['good', 'bad', 'opportunity', 'not_relevant'];
-
-    if (rating && validRatings.includes(rating) && domain && rep) {
-      fetch(WEBHOOK_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rating: rating, domain: domain, rep: rep })
-      }).catch(function() {});
-
-      incrementCounter(rating);
-
-      const m = messages[rating];
-      document.getElementById('emoji').textContent = m.emoji;
-      document.getElementById('title').textContent = m.title;
-      let bodyText = m.body;
-      if (rating === 'good') bodyText += domain + '.';
-      document.getElementById('message').innerHTML = bodyText;
-      document.getElementById('status').textContent = 'You can close this tab.';
-    }
-  </script>
+<div class="card">
+  <div class="emoji" id="emoji">🎣</div>
+  <h1 id="title">Fresh Catch feedback</h1>
+  <p id="message">Click a feedback button in your daily Fresh Catch email to record a rating.</p>
+  <p class="status" id="status"></p>
+</div>
+<script>
+const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-c952284c';
+const validRatings = ['good','bad','opportunity','not_relevant','dq_contact'];
+const messages = {
+  good:         { emoji: '👍', title: 'Good account logged!', body: 'Fresh Catch will find more companies like <span class="highlight">DOMAIN</span>.' },
+  opportunity:  { emoji: '🎯', title: 'Opportunity logged!',  body: 'Strongest positive signal we track. Nice work.' },
+  not_relevant: { emoji: '🚫', title: 'Never suggest logged.', body: '<span class="highlight">DOMAIN</span> won\'t be suggested again.' },
+  dq_contact:   { emoji: '👎', title: 'Contact DQ\'d.',        body: '<span class="highlight">CONTACT</span> at <span class="highlight">DOMAIN</span> is out of the call list. Account stays on future lists — we\'ll try different contacts.' },
+  bad:          { emoji: '👎', title: 'Feedback logged.',      body: 'Legacy button (no effect on future picks).' }
+};
+const params = new URLSearchParams(window.location.search);
+const rating = params.get('rating');
+const domain = params.get('domain');
+const rep = params.get('rep');
+const contactName = params.get('contact_name') || '';
+const contactEmail = params.get('contact_email') || '';
+const contactLinkedin = params.get('contact_linkedin') || '';
+if (rating && validRatings.includes(rating) && domain && rep) {
+  const payload = { rating: rating, domain: domain, rep: rep };
+  if (rating === 'dq_contact') {
+    payload.contact_name = contactName;
+    payload.contact_email = contactEmail;
+    payload.contact_linkedin = contactLinkedin;
+  }
+  fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }).catch(function(){});
+  const m = messages[rating];
+  document.getElementById('emoji').textContent = m.emoji;
+  document.getElementById('title').textContent = m.title;
+  let bodyText = m.body.replace('DOMAIN', domain).replace('CONTACT', contactName);
+  document.getElementById('message').innerHTML = bodyText;
+  document.getElementById('status').textContent = 'You can close this tab.';
+}
+</script>
 </body>
 </html>
