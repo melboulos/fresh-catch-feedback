@@ -1,0 +1,133 @@
+<svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect width="1280" height="720" fill="#ffffff"/>
+
+  <!-- Eyebrow -->
+  <text x="64" y="60" font-size="13" font-weight="700" letter-spacing="1" fill="#EA2328">HOW FRESH CATCH WORKS</text>
+
+  <!-- Headline -->
+  <text x="64" y="98" font-size="30" font-weight="700" fill="#0F172A">From 155 trained accounts to a call-ready brief,</text>
+  <text x="64" y="134" font-size="30" font-weight="700" fill="#0F172A">every morning</text>
+
+  <!-- Subtitle -->
+  <text x="64" y="166" font-size="15" fill="#475569">The agent learns what a good Couchbase account looks like, then runs the same</text>
+  <text x="64" y="187" font-size="15" fill="#475569">research → verify → screen → send pipeline daily at 8am ET.</text>
+
+  <!-- Column headers -->
+  <text x="64" y="228" font-size="12" font-weight="700" letter-spacing="0.5" fill="#94A3B8">TRAINED ON</text>
+  <text x="324" y="228" font-size="12" font-weight="700" letter-spacing="0.5" fill="#94A3B8">REFERENCE MODEL</text>
+  <text x="524" y="228" font-size="12" font-weight="700" letter-spacing="0.5" fill="#94A3B8">RUNS DAILY, 8AM ET</text>
+
+  <!-- Trained-on box -->
+  <rect x="64" y="248" width="230" height="160" rx="10" fill="#ffffff" stroke="#E5E7EB"/>
+  <circle cx="72" cy="291" r="3" fill="#EA2328"/>
+  <text x="88" y="296" font-size="13" fill="#0F172A"><tspan font-weight="700">ICP-A defaults</tspan> — ~130</text>
+  <text x="88" y="313" font-size="13" fill="#0F172A">marquee US wins</text>
+  <circle cx="72" cy="336" r="3" fill="#EA2328"/>
+  <text x="88" y="341" font-size="13" fill="#0F172A"><tspan font-weight="700">ICP-B defaults</tspan> — ~25</text>
+  <text x="88" y="358" font-size="13" fill="#0F172A">regional accounts</text>
+  <circle cx="72" cy="381" r="3" fill="#EA2328"/>
+  <text x="88" y="386" font-size="13" fill="#0F172A"><tspan font-weight="700">Rep pipeline</tspan> — committed</text>
+  <text x="88" y="403" font-size="13" fill="#0F172A">opps, optional</text>
+
+  <!-- Arrow 1 -->
+  <text x="304" y="335" font-size="16" fill="#CBD5E1">›</text>
+
+  <!-- Fit model box (highlighted) -->
+  <rect x="324" y="248" width="170" height="160" rx="10" fill="#FFF7ED" stroke="#FDBA74"/>
+  <text x="409" y="298" font-size="11" font-weight="700" letter-spacing="0.5" fill="#EA2328" text-anchor="middle">COUCHBASE ICP</text>
+  <text x="409" y="311" font-size="11" font-weight="700" letter-spacing="0.5" fill="#EA2328" text-anchor="middle">LOGIC</text>
+  <text x="409" y="338" font-size="16" font-weight="700" fill="#0F172A" text-anchor="middle">Fit model</text>
+  <text x="409" y="360" font-size="12" fill="#475569" text-anchor="middle">What a good account</text>
+  <text x="409" y="375" font-size="12" fill="#475569" text-anchor="middle">looks like</text>
+
+  <!-- Arrow 2 -->
+  <text x="504" y="335" font-size="16" fill="#CBD5E1">›</text>
+
+  <!-- Research box -->
+  <rect x="524" y="248" width="150" height="160" rx="10" fill="#ffffff" stroke="#E5E7EB"/>
+  <circle cx="599" cy="303" r="20" fill="#FEE2E2"/>
+  <text x="599" y="310" font-size="18" text-anchor="middle">🔍</text>
+  <text x="599" y="345" font-size="14" font-weight="700" fill="#0F172A" text-anchor="middle">Research</text>
+  <text x="599" y="363" font-size="11" fill="#475569" text-anchor="middle">Generate + score</text>
+  <text x="599" y="377" font-size="11" fill="#475569" text-anchor="middle">candidates</text>
+
+  <!-- Arrow 3 -->
+  <text x="684" y="335" font-size="16" fill="#CBD5E1">›</text>
+
+  <!-- Verify box -->
+  <rect x="704" y="248" width="150" height="160" rx="10" fill="#ffffff" stroke="#E5E7EB"/>
+  <circle cx="779" cy="303" r="20" fill="#FEE2E2"/>
+  <text x="779" y="310" font-size="18" text-anchor="middle">🛡️</text>
+  <text x="779" y="345" font-size="14" font-weight="700" fill="#0F172A" text-anchor="middle">Verify</text>
+  <text x="779" y="363" font-size="11" fill="#475569" text-anchor="middle">Signals +</text>
+  <text x="779" y="377" font-size="11" fill="#475569" text-anchor="middle">Salesforce check</text>
+
+  <!-- Arrow 4 -->
+  <text x="864" y="335" font-size="16" fill="#CBD5E1">›</text>
+
+  <!-- Screen box -->
+  <rect x="884" y="248" width="150" height="160" rx="10" fill="#ffffff" stroke="#E5E7EB"/>
+  <circle cx="959" cy="303" r="20" fill="#FEE2E2"/>
+  <text x="959" y="310" font-size="18" text-anchor="middle">👤</text>
+  <text x="959" y="345" font-size="14" font-weight="700" fill="#0F172A" text-anchor="middle">Screen</text>
+  <text x="959" y="363" font-size="11" fill="#475569" text-anchor="middle">Enrich contacts,</text>
+  <text x="959" y="377" font-size="11" fill="#475569" text-anchor="middle">check compliance</text>
+
+  <!-- Arrow 5 -->
+  <text x="1044" y="335" font-size="16" fill="#CBD5E1">›</text>
+
+  <!-- Send box -->
+  <rect x="1064" y="248" width="150" height="160" rx="10" fill="#ffffff" stroke="#E5E7EB"/>
+  <circle cx="1139" cy="303" r="20" fill="#FEE2E2"/>
+  <text x="1139" y="310" font-size="18" text-anchor="middle">✉️</text>
+  <text x="1139" y="345" font-size="14" font-weight="700" fill="#0F172A" text-anchor="middle">Send</text>
+  <text x="1139" y="363" font-size="11" fill="#475569" text-anchor="middle">Call-ready brief to</text>
+  <text x="1139" y="377" font-size="11" fill="#475569" text-anchor="middle">the rep</text>
+
+  <!-- Learns from the field -->
+  <text x="64" y="446" font-size="12" font-weight="700" letter-spacing="0.5" fill="#EA2328">LEARNS FROM THE FIELD</text>
+
+  <!-- Feedback arc -->
+  <path d="M 409 415 C 409 470, 500 500, 599 505" stroke="#FBBF24" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  <path d="M 599 505 C 700 508, 750 508, 779 505" stroke="#FBBF24" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  <path d="M 779 505 C 830 502, 900 500, 959 505" stroke="#FBBF24" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  <path d="M 959 505 C 1010 508, 1060 508, 1090 507" stroke="#FBBF24" stroke-width="2" stroke-dasharray="4 4" fill="none"/>
+  <polygon points="405,410 415,410 410,420" fill="#FBBF24"/>
+
+  <circle cx="599" cy="505" r="18" fill="#DCFCE7"/>
+  <text x="599" y="511" font-size="15" text-anchor="middle">👍</text>
+  <text x="599" y="537" font-size="13" font-weight="700" fill="#0F172A" text-anchor="middle">Good account</text>
+  <text x="599" y="551" font-size="11" fill="#475569" text-anchor="middle">Positive signal</text>
+
+  <circle cx="779" cy="505" r="18" fill="#FEF3C7"/>
+  <text x="779" y="511" font-size="15" text-anchor="middle">🎯</text>
+  <text x="779" y="537" font-size="13" font-weight="700" fill="#0F172A" text-anchor="middle">Opportunity</text>
+  <text x="779" y="551" font-size="11" fill="#475569" text-anchor="middle">5× weighted, kept</text>
+  <text x="779" y="565" font-size="11" fill="#475569" text-anchor="middle">forever</text>
+
+  <circle cx="959" cy="505" r="18" fill="#FEE2E2"/>
+  <text x="959" y="511" font-size="15" text-anchor="middle">🚫</text>
+  <text x="959" y="537" font-size="13" font-weight="700" fill="#0F172A" text-anchor="middle">Never suggest</text>
+  <text x="959" y="551" font-size="11" fill="#475569" text-anchor="middle">Domain excluded</text>
+
+  <circle cx="1120" cy="505" r="18" fill="#FEE2E2"/>
+  <text x="1120" y="511" font-size="15" text-anchor="middle">👎</text>
+  <text x="1120" y="537" font-size="13" font-weight="700" fill="#0F172A" text-anchor="middle">Wrong contact</text>
+  <text x="1120" y="551" font-size="11" fill="#475569" text-anchor="middle">Person only, not</text>
+  <text x="1120" y="565" font-size="11" fill="#475569" text-anchor="middle">account</text>
+
+  <!-- Footer note -->
+  <text x="64" y="630" font-size="13" font-style="italic" fill="#475569">Every reaction reweights tomorrow's candidate list — no redeploy needed.</text>
+
+  <!-- Footer brand -->
+  <text x="64" y="676" font-size="20" text-anchor="start">🎣</text>
+  <text x="88" y="676" font-size="14" font-weight="700" fill="#0F172A">Fresh Catch</text>
+  <text x="175" y="676" font-size="13" fill="#94A3B8">· SDR prospecting agent</text>
+
+  <!-- Footer pills -->
+  <rect x="897" y="658" width="153" height="26" rx="13" fill="#F1F5F9"/>
+  <text x="973" y="675" font-size="12" fill="#334155" text-anchor="middle">Prod + safe test copy</text>
+
+  <rect x="1058" y="658" width="157" height="26" rx="13" fill="#F1F5F9"/>
+  <text x="1136" y="675" font-size="12" fill="#334155" text-anchor="middle">Zero-lead days are OK</text>
+</svg>
