@@ -22,7 +22,7 @@
   <p class="status" id="status"></p>
 </div>
 <script>
-const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-c952284c';
+const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-003fa3e8';
 const validRatings = ['good','bad','opportunity','not_relevant','dq_contact'];
 const messages = {
   good:         { emoji: '👍', title: 'Good account logged!', body: 'Fresh Catch will find more companies like <span class="highlight">DOMAIN</span>.' },
@@ -34,7 +34,7 @@ const messages = {
 
 const params = new URLSearchParams(window.location.search);
 
-// Accept either `rating=` (new pill format) or `type=` (legacy pill format).
+// Accept either `rating=` (new pill format) or `type=` (legacy pill format from older emails).
 const rating = params.get('rating') || params.get('type');
 const domain = params.get('domain');
 const rep = params.get('rep');
@@ -44,21 +44,26 @@ const contactEmail = params.get('contact_email') || '';
 const contactLinkedin = params.get('contact_linkedin') || '';
 
 if (rating && validRatings.includes(rating) && domain && rep) {
-  // Build webhook URL with query params (matches receiver's expected trigger shape).
-  const webhookParams = new URLSearchParams();
-  webhookParams.set('rating', rating);
-  webhookParams.set('domain', domain.toLowerCase());
-  webhookParams.set('rep', rep);
-  if (test) webhookParams.set('test', test);
+  // Build POST body — receiver reads from trigger_data.payload.
+  const payload = {
+    rating: rating,
+    domain: domain.toLowerCase(),
+    rep: rep
+  };
+  if (test) payload.test = test;
   if (rating === 'dq_contact') {
-    if (contactName) webhookParams.set('contact_name', contactName);
-    if (contactEmail) webhookParams.set('contact_email', contactEmail);
-    if (contactLinkedin) webhookParams.set('contact_linkedin', contactLinkedin);
+    if (contactName) payload.contact_name = contactName;
+    if (contactEmail) payload.contact_email = contactEmail;
+    if (contactLinkedin) payload.contact_linkedin = contactLinkedin;
   }
-  const url = WEBHOOK_URL + '?' + webhookParams.toString();
 
-  // GET, fire-and-forget. no-cors because we don't need to read the response.
-  fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){});
+  // POST with JSON body. no-cors because we don't need to read the response.
+  fetch(WEBHOOK_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload)
+  }).catch(function(){});
 
   // Update UI.
   const m = messages[rating];
