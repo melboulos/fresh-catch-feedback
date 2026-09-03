@@ -31,27 +31,44 @@ const messages = {
   dq_contact:   { emoji: '👎', title: 'Contact DQ\'d.',        body: '<span class="highlight">CONTACT</span> at <span class="highlight">DOMAIN</span> is out of the call list. Account stays on future lists — we\'ll try different contacts.' },
   bad:          { emoji: '👎', title: 'Feedback logged.',      body: 'Legacy button (no effect on future picks).' }
 };
+
 const params = new URLSearchParams(window.location.search);
-const rating = params.get('rating');
+
+// Accept either `rating=` (new pill format) or `type=` (legacy pill format).
+const rating = params.get('rating') || params.get('type');
 const domain = params.get('domain');
 const rep = params.get('rep');
+const test = params.get('test');
 const contactName = params.get('contact_name') || '';
 const contactEmail = params.get('contact_email') || '';
 const contactLinkedin = params.get('contact_linkedin') || '';
+
 if (rating && validRatings.includes(rating) && domain && rep) {
-  const payload = { rating: rating, domain: domain, rep: rep };
+  // Build webhook URL with query params (matches receiver's expected trigger shape).
+  const webhookParams = new URLSearchParams();
+  webhookParams.set('rating', rating);
+  webhookParams.set('domain', domain.toLowerCase());
+  webhookParams.set('rep', rep);
+  if (test) webhookParams.set('test', test);
   if (rating === 'dq_contact') {
-    payload.contact_name = contactName;
-    payload.contact_email = contactEmail;
-    payload.contact_linkedin = contactLinkedin;
+    if (contactName) webhookParams.set('contact_name', contactName);
+    if (contactEmail) webhookParams.set('contact_email', contactEmail);
+    if (contactLinkedin) webhookParams.set('contact_linkedin', contactLinkedin);
   }
-  fetch(WEBHOOK_URL, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) }).catch(function(){});
+  const url = WEBHOOK_URL + '?' + webhookParams.toString();
+
+  // GET, fire-and-forget. no-cors because we don't need to read the response.
+  fetch(url, { method: 'GET', mode: 'no-cors' }).catch(function(){});
+
+  // Update UI.
   const m = messages[rating];
   document.getElementById('emoji').textContent = m.emoji;
   document.getElementById('title').textContent = m.title;
   let bodyText = m.body.replace('DOMAIN', domain).replace('CONTACT', contactName);
   document.getElementById('message').innerHTML = bodyText;
-  document.getElementById('status').textContent = 'You can close this tab.';
+  document.getElementById('status').textContent = test === '1'
+    ? 'Test click — nothing was saved. You can close this tab.'
+    : 'You can close this tab.';
 }
 </script>
 </body>
