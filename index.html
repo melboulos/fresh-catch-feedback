@@ -24,12 +24,14 @@
 <script>
 // ============================================================================
 // Fresh Catch boomerang page.
-// Handles two flows:
+// Two flows, one page:
 //   1. Feedback pills (good/bad/opportunity/not_relevant/dq_contact)
 //      → POST directly to the Fresh Catch Feedback workflow webhook.
+//      → Flow is IDENTICAL to prior version. Do not alter.
 //   2. Pursue action (action=pursue)
 //      → POST to the Cloudflare Worker, which injects booking_url
-//         and forwards to the Fresh Catch Pursue workflow webhook.
+//         and forwards to the same Fresh Catch Feedback workflow webhook.
+//      → The workflow branches internally on action=pursue.
 // ============================================================================
 
 // -- Endpoints --------------------------------------------------------------
@@ -54,7 +56,7 @@ const contactEmail = params.get('contact_email') || '';
 const contactLinkedin = params.get('contact_linkedin') || '';
 const pursuitId = params.get('pursuit_id');
 
-// -- Feedback flow (unchanged from existing implementation) -----------------
+// -- Feedback flow (UNCHANGED — do not modify) ------------------------------
 const validRatings = ['good','bad','opportunity','not_relevant','dq_contact'];
 const feedbackMessages = {
   good:         { emoji: '👍', title: 'Good account logged!',   body: 'Fresh Catch will find more companies like <span class="highlight">DOMAIN</span>.' },
@@ -64,7 +66,7 @@ const feedbackMessages = {
   bad:          { emoji: '👎', title: 'Feedback logged.',       body: 'Legacy button (no effect on future picks).' }
 };
 
-// -- Pursue flow ------------------------------------------------------------
+// -- Pursue flow (new) ------------------------------------------------------
 function renderPursue() {
   const contactLabel = contactName || 'this contact';
   document.getElementById('emoji').textContent = '🎯';
@@ -89,11 +91,10 @@ function renderFeedback(m) {
 
 // -- Route the click --------------------------------------------------------
 if (action === 'pursue') {
-  // Pursue: minimal payload — pursuit_id is the source of truth.
-  // The Pursue workflow retrieves everything else from
-  // fresh_catch_lead_context[pursuit_id] in org-scoped custom_store.
+  // NEW Pursue path. Minimal payload — pursuit_id is the source of truth.
+  // Worker injects booking_url and forwards to the Feedback workflow webhook.
   if (pursuitId && rep) {
-    const payload = { pursuit_id: pursuitId, rep_email: rep };
+    const payload = { action: 'pursue', pursuit_id: pursuitId, rep_email: rep };
     if (contactEmail) payload.contact_email = contactEmail;
     if (test) payload.test = test;
 
@@ -107,7 +108,7 @@ if (action === 'pursue') {
     renderPursue();
   }
 } else if (rating && validRatings.includes(rating) && domain && rep) {
-  // Feedback: existing direct-to-Rox flow, unchanged.
+  // EXISTING feedback flow. UNCHANGED. Do not modify.
   const payload = {
     rating: rating,
     domain: domain.toLowerCase(),
