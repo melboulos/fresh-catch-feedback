@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎣 Fresh Catch — Feedback</title>
+<title>🎣 Fresh Catch</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #fafafa; color: #0f172a; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 24px; }
   .card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 40px 32px; max-width: 480px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.06); text-align: center; }
@@ -17,34 +17,97 @@
 <body>
 <div class="card">
   <div class="emoji" id="emoji">🎣</div>
-  <h1 id="title">Fresh Catch feedback</h1>
-  <p id="message">Click a feedback button in your daily Fresh Catch email to record a rating.</p>
+  <h1 id="title">Fresh Catch</h1>
+  <p id="message">Click a button in your daily Fresh Catch email to record feedback or start a pursuit.</p>
   <p class="status" id="status"></p>
 </div>
 <script>
-const WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-003fa3e8';
-const validRatings = ['good','bad','opportunity','not_relevant','dq_contact'];
-const messages = {
-  good:         { emoji: '👍', title: 'Good account logged!', body: 'Fresh Catch will find more companies like <span class="highlight">DOMAIN</span>.' },
-  opportunity:  { emoji: '🎯', title: 'Opportunity logged!',  body: 'Strongest positive signal we track. Nice work.' },
-  not_relevant: { emoji: '🚫', title: 'Never suggest logged.', body: '<span class="highlight">DOMAIN</span> won\'t be suggested again.' },
-  dq_contact:   { emoji: '👎', title: 'Contact DQ\'d.',        body: '<span class="highlight">CONTACT</span> at <span class="highlight">DOMAIN</span> is out of the call list. Account stays on future lists — we\'ll try different contacts.' },
-  bad:          { emoji: '👎', title: 'Feedback logged.',      body: 'Legacy button (no effect on future picks).' }
-};
+// ============================================================================
+// Fresh Catch boomerang page.
+// Handles two flows:
+//   1. Feedback pills (good/bad/opportunity/not_relevant/dq_contact)
+//      → POST directly to the Fresh Catch Feedback workflow webhook.
+//   2. Pursue action (action=pursue)
+//      → POST to the Cloudflare Worker, which injects booking_url
+//         and forwards to the Fresh Catch Pursue workflow webhook.
+// ============================================================================
 
+// -- Endpoints --------------------------------------------------------------
+const FEEDBACK_WEBHOOK_URL = 'https://webhooks.backend.rox.com/webhooks/w/workflow-webhook-003fa3e8';
+
+// REPLACE THIS ONE LINE once the Cloudflare Worker for Fresh Catch Pursue is deployed.
+const PURSUE_WORKER_URL = 'WORKER_URL_TBD';
+
+// -- Query params -----------------------------------------------------------
 const params = new URLSearchParams(window.location.search);
 
-// Accept either `rating=` (new pill format) or `type=` (legacy pill format from older emails).
+// Feedback pills carry `rating` (new) or `type` (legacy).
+// Pursue carries `action=pursue`.
+const action = params.get('action');
 const rating = params.get('rating') || params.get('type');
+
 const domain = params.get('domain');
 const rep = params.get('rep');
 const test = params.get('test');
 const contactName = params.get('contact_name') || '';
 const contactEmail = params.get('contact_email') || '';
 const contactLinkedin = params.get('contact_linkedin') || '';
+const pursuitId = params.get('pursuit_id');
 
-if (rating && validRatings.includes(rating) && domain && rep) {
-  // Build POST body — receiver reads from trigger_data.payload.
+// -- Feedback flow (unchanged from existing implementation) -----------------
+const validRatings = ['good','bad','opportunity','not_relevant','dq_contact'];
+const feedbackMessages = {
+  good:         { emoji: '👍', title: 'Good account logged!',   body: 'Fresh Catch will find more companies like <span class="highlight">DOMAIN</span>.' },
+  opportunity:  { emoji: '🔥', title: 'More like this logged!', body: 'Strongest positive signal we track. Nice work.' },
+  not_relevant: { emoji: '🚫', title: 'Never suggest logged.',  body: '<span class="highlight">DOMAIN</span> won\'t be suggested again.' },
+  dq_contact:   { emoji: '👎', title: 'Contact DQ\'d.',         body: '<span class="highlight">CONTACT</span> at <span class="highlight">DOMAIN</span> is out of the call list. Account stays on future lists — we\'ll try different contacts.' },
+  bad:          { emoji: '👎', title: 'Feedback logged.',       body: 'Legacy button (no effect on future picks).' }
+};
+
+// -- Pursue flow ------------------------------------------------------------
+function renderPursue() {
+  const contactLabel = contactName || 'this contact';
+  document.getElementById('emoji').textContent = '🎯';
+  document.getElementById('title').textContent = 'Pursuit started';
+  document.getElementById('message').innerHTML =
+    'Drafting outreach for <span class="highlight">' + contactLabel + '</span>.<br>' +
+    'Check your Rox Home in ~2 minutes.';
+  document.getElementById('status').textContent = test === '1'
+    ? 'Test click — nothing was drafted. You can close this tab.'
+    : 'You can close this tab.';
+}
+
+function renderFeedback(m) {
+  document.getElementById('emoji').textContent = m.emoji;
+  document.getElementById('title').textContent = m.title;
+  let bodyText = m.body.replace('DOMAIN', domain).replace('CONTACT', contactName);
+  document.getElementById('message').innerHTML = bodyText;
+  document.getElementById('status').textContent = test === '1'
+    ? 'Test click — nothing was saved. You can close this tab.'
+    : 'You can close this tab.';
+}
+
+// -- Route the click --------------------------------------------------------
+if (action === 'pursue') {
+  // Pursue: minimal payload — pursuit_id is the source of truth.
+  // The Pursue workflow retrieves everything else from
+  // fresh_catch_lead_context[pursuit_id] in org-scoped custom_store.
+  if (pursuitId && rep) {
+    const payload = { pursuit_id: pursuitId, rep_email: rep };
+    if (contactEmail) payload.contact_email = contactEmail;
+    if (test) payload.test = test;
+
+    fetch(PURSUE_WORKER_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    }).catch(function(){});
+
+    renderPursue();
+  }
+} else if (rating && validRatings.includes(rating) && domain && rep) {
+  // Feedback: existing direct-to-Rox flow, unchanged.
   const payload = {
     rating: rating,
     domain: domain.toLowerCase(),
@@ -57,24 +120,16 @@ if (rating && validRatings.includes(rating) && domain && rep) {
     if (contactLinkedin) payload.contact_linkedin = contactLinkedin;
   }
 
-  // POST with JSON body. no-cors because we don't need to read the response.
-  fetch(WEBHOOK_URL, {
+  fetch(FEEDBACK_WEBHOOK_URL, {
     method: 'POST',
     mode: 'no-cors',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload)
   }).catch(function(){});
 
-  // Update UI.
-  const m = messages[rating];
-  document.getElementById('emoji').textContent = m.emoji;
-  document.getElementById('title').textContent = m.title;
-  let bodyText = m.body.replace('DOMAIN', domain).replace('CONTACT', contactName);
-  document.getElementById('message').innerHTML = bodyText;
-  document.getElementById('status').textContent = test === '1'
-    ? 'Test click — nothing was saved. You can close this tab.'
-    : 'You can close this tab.';
+  renderFeedback(feedbackMessages[rating]);
 }
+// Otherwise: leave the default landing card in place.
 </script>
 </body>
 </html>
