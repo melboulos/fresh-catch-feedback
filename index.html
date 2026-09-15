@@ -62,7 +62,7 @@ const pursuitId = params.get('pursuit_id');
 const validRatings = ['good','bad','opportunity','not_relevant','dq_contact'];
 const feedbackMessages = {
   good:         { emoji: '👍', title: 'Good account logged!',   body: 'Fresh Catch will find more companies like <span class="highlight">DOMAIN</span>.' },
-  opportunity:  { emoji: '🔥', title: 'More like this logged!', body: 'Strongest positive signal we track. Nice work.' },
+  opportunity:  { emoji: '🔥', title: 'More like this logged!', body: 'Strongest positive signal we track for <span class="highlight">DOMAIN</span>. Nice work.' },
   not_relevant: { emoji: '🚫', title: 'Never suggest logged.',  body: '<span class="highlight">DOMAIN</span> won\'t be suggested again.' },
   dq_contact:   { emoji: '👎', title: 'Contact DQ\'d.',         body: '<span class="highlight">CONTACT</span> at <span class="highlight">DOMAIN</span> is out of the call list. Account stays on future lists — we\'ll try different contacts.' },
   bad:          { emoji: '👎', title: 'Feedback logged.',       body: 'Legacy button (no effect on future picks).' }
