@@ -29,7 +29,8 @@ When a rep clicks the 🎯 Pursue pill on a Fresh Catch lead, this workflow retr
            │  Rep clicks 🎯 Pursue
            ▼
 ┌───────────────────────────────────────────────────┐
-│  Static shim (deep_dive_feedback/index.html at    │
+│  Static shim (index.html, reusing the shared      │
+│  deep_dive_feedback Worker infra) at               │
 │  https://<pages-host>/fresh_catch_pursue/)        │
 │  reads query params, POSTs JSON to Worker.        │
 │  [FUTURE — currently pill goes direct to Worker]  │
@@ -73,6 +74,8 @@ When a rep clicks the 🎯 Pursue pill on a Fresh Catch lead, this workflow retr
            ├─► custom_store_set → pursuit status = "drafted"
            └─► send_notification → maintainer's inbox (shadow diagnostic)
 ```
+
+> **Note on `deep_dive_feedback`:** the Cloudflare Worker (`rox-deep-dive-proxy`) that dispatches Pursue clicks is shared infrastructure originally built for the Deep Dive project. Fresh Catch Pursue reuses it rather than running its own Worker. `deep_dive_feedback` does not own or host this project — it just provides the Worker this pill happens to route through.
 
 ---
 
