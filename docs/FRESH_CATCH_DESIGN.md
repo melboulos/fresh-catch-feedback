@@ -62,7 +62,7 @@ Precedence: peek > ui\_test > preview > live.
 
 **UI test mode** skips Steps 1–8 entirely, uses a hardcoded 3-company sample, generates HTML through Step 9, sends via Step 10 with subject prefix `[UI TEST]`. For design-lock validation without spending research/enrichment credits.
 
-**Preview mode** runs the full pipeline including the territory fence, generates and emails the report, but writes nothing to org state and prefixes the subject with `[TEST]`. The territory fence still applies — an unmapped rep sees zero candidates.
+**Preview mode** runs the full pipeline including the territory fence, generates and emails the report, but writes nothing to org state and prefixes the subject with `[TEST]`. The territory fence still applies — an unmapped rep sees zero candidates. Prism dispatch (§10a) never fires in preview — the preview email footer notes "no Prism sequences were created."
 
 **Live mode** persists everything, adds leads to the Lookalike Prospects People list, and renders the per-rep 🎯 Pursue pill when the rep is in the Worker's webhook map.
 
@@ -83,7 +83,7 @@ Single map holding all tunable knobs, loaded once at Step 1. Every knob has an i
 | `signal_recency_days` | 90 | Signals older than this are downweighted |
 | `feedback_opportunity_weight` | 5 | Multiplier of 🔥 More-like-this vs 👍 Good |
 | `feedback_lookback_days` | 90 | Non-opportunity feedback retention |
-| `email_subject_template` | 🎣 Fresh Catch — {N} leads · {M} companies · call {top\_company} first | Subject template |
+| `email_subject_template` | 🎣 Fresh Catch  {N} leads · {M} companies · call {top\_company} first | Subject template |
 | `icp_a_extra` / `icp_a_exclude` | \[\] | Overrides for ICP-A default list |
 | `icp_b_extra` / `icp_b_exclude` | \[\] | Overrides for ICP-B default list |
 | `new_logo_territories` | See §4 DEFAULT | East/West rep assignment |
@@ -100,6 +100,7 @@ Single map holding all tunable knobs, loaded once at Step 1. Every knob has an i
 | `fresh_catch_runs` | list\[dict\] | Fresh Catch | Per-run metadata log |
 | `fresh_catch_lead_context:{rep_email_lower}` | dict\[pursuit\_id, record\] | Fresh Catch + Pursue | Per-rep persisted lead context (partitioned by field ownership) |
 | `fresh_catch_lead_context` (legacy, no suffix) | Same shape | Migration only | Read-only fallback during migration; dual-written during migration; retired once all reps have run under the per-rep spec |
+| `prism_webhooks_by_rep` | dict\[str, str\] | Manual | Rep-email → Prism webhook URL, for the §10a dispatch |
 
 ### 6.3 Workflow variables
 
@@ -169,7 +170,7 @@ Every candidate the researcher returns must include `hq_city_state` (unknown whe
 
 Both agents share one record per contact, keyed by `pursuit_id`.
 
-**8.1 Fresh Catch-owned fields** (written on every live run): `pursuit_id`, `run_id`, `rep_email`, `run_date`, `account.*` (name, domain, `fit_score`, tier, `most_similar_to`), `signal.*` (emoji, headline, `source_name`, date, url), `why_now`, `couchbase_angle` (category-level only, no customer names), `implication`, `call_opener` (no customer names), `contact.*` (name, title, email, phone, `linkedin_slug`), `status` (initialized to `open` on new records; preserved if already drafted or sent).
+**8.1 Fresh Catch-owned fields** (written on every live run): `pursuit_id`, `run_id`, `rep_email`, `run_date`, `account.*` (name, domain, `fit_score`, tier, `most_similar_to`), `signal.*` (emoji, headline, `source_name`, date, url), `why_now`, `couchbase_angle` (category-level only, no customer names), `implication`, `call_opener` (no customer names), `contact.*` (name, title, email, phone, `linkedin_slug`, `rox_person_id` — stamped from `find_contact`), `account.rox_company_id` (nullable, stamped from Step 8a.5 account resolution), `status` (initialized to `open` on new records; preserved if already drafted or sent).
 
 **8.2 Pursue-owned fields:** `why_you`, `customer_evidence.*` (qualification, `customer_name`, `use_case`, relevance, `source_url`), `conversation_thesis`, and `status` transitions `open → drafted → sent`. All Couchbase customer-reference research lives here — Fresh Catch never names a customer in `couchbase_angle` or `call_opener`.
 
@@ -209,6 +210,64 @@ The Worker validates params, looks up the rep's Pursue webhook URL by `rep_email
 
 **Persistence independence:** Fresh Catch writes lead context for every compliance-cleared contact regardless of whether the rep is currently mapped for Pursue — Pursue can be enabled for a rep later without re-running Fresh Catch.
 
+## 10a. Prism handoff — Fresh Catch dispatch contract (FROZEN)
+
+Fresh Catch dispatches qualifying companies to each rep's Prism instance immediately after lead-context persistence (Step 8b) and before email generation (Step 9), live mode only.
+
+**Rep → webhook map.** `prism_webhooks_by_rep` (org-scoped map, same pattern as the Pursue webhook map) maps rep email → Prism webhook URL:
+
+```json
+{
+  "nate.beck@couchbase.com": "https://webhooks.backend.rox.com/webhooks/w/<nate's prism slug>",
+  "mel.boulos@couchbase.com": "https://webhooks.backend.rox.com/webhooks/w/<your prism slug>"
+}
+```
+
+Loaded in Step 1.10. If the running rep isn't in the map, dispatch is silently skipped and logged (`prism_dispatch_skipped_no_map`) — never an error.
+
+**Account resolution (Step 8a.5, live only).** One batch `find_or_create_accounts` call over all final companies with ≥ 1 cleared contact; owner defaults to the running rep. Builds a `rox_company_id_by_domain` map used by Step 8b (lead-context stamping) and Step 8c (dispatch). A company whose account resolution fails is counted and logged but never dispatched with a null `rox_company_id`.
+
+**Dispatch (Step 8c, live only).** For each final company with ≥ 1 cleared contact AND a resolved `rox_company_id`, POST once to the rep's Prism webhook URL. Fire-and-forget: a 2xx response counts as success; anything else counts under `prism_dispatches_failed` with the error body excerpt captured in `prism_dispatch_errors`. A failed or skipped dispatch never fails the Fresh Catch run.
+
+**Payload shape (frozen):**
+
+```json
+{
+  "report_id": "<Fresh Catch run_id>",
+  "test": false,
+  "rox_company_id": "...",
+  "company_name": "...",
+  "company_domain": "...",
+  "owning_rep_email": "...",
+  "owning_rep_name": "...",
+  "signal_summary": "...",
+  "signal_sources": ["..."],
+  "signal_type": "...",
+  "fresh_catch_couchbase_angle": "...",
+  "fresh_catch_call_opener": "...",
+  "candidate_contacts": [
+    {
+      "pursuit_id": "...",
+      "rox_person_id": "..." ,
+      "name": "...",
+      "email": "...",
+      "linkedin_slug": "...",
+      "title": "...",
+      "phone": "...",
+      "is_fresh_catch_primary": false
+    }
+  ]
+}
+```
+
+`owning_rep_*` is populated from `{{ metadata.user.* }}` — Prism verifies these against its own runtime identity on receipt. `signal_summary`/`signal_sources`/`signal_type` are mapped from the Step 9 signal emoji palette (see §13 mapping table). `is_fresh_catch_primary` is always `false` — Prism owns primary-contact selection, not Fresh Catch. `candidate_contacts[]` has one entry per compliance-cleared contact on that company.
+
+**Schema extension.** `account.rox_company_id` (FC-owned, nullable) is added to the lead-context record, stamped from the Step 8a.5 map, so Pursue can also read it later. `contact.rox_person_id` is likewise stamped from `find_contact` results.
+
+**Live-only guardrail.** Preview mode and UI test mode never run Step 8a.5 or Step 8c — Prism creates real claims, templates, sequences, and notifications, so there is no dry-run path. The preview banner and footer explicitly note "no Prism sequences were created."
+
+**Independence from Pursue.** The Prism dispatch is entirely independent of `pursue_webhooks_by_rep` / the 🎯 Pursue pill — a rep can be mapped for one, both, or neither.
+
 ## 11. Execution steps
 
 **Step 1 — Load config and state**
@@ -222,6 +281,7 @@ The Worker validates params, looks up the rep's Pursue webhook URL by `rep_email
 7. Load and prune (30-day retention) `fresh_catch_lead_context:{rep_email_lower}` per §9 read pattern. Live only.
 8. Fetch Pursue webhook map from `https://rox-deep-dive-proxy.mel-boulos-97e.workers.dev/pursue-webhooks.json`. Live only. Failures → treat map as empty, log `pursue_map_fetch_error`, never fail the run.
 9. Compute `running_rep_territory` (§7.4). All modes except UI test.
+10. Load `prism_webhooks_by_rep` (org scope) with defensive normalization; sets `prism_dispatch_enabled` and `prism_webhook_url` for the running rep. Never fails the run on load errors (logs `prism_map_load_error`).
 
 **Step 2 — Query committed opportunities for territory anchor.** RQL query against the deal object for the rep's committed forecast-stage opportunities, capped \~15 rows. Adds the rep's territory pattern as an additional anchor, never a replacement for ICP. Sets `anchor_mode = rep+icp | icp_only | rql_failed`.
 
@@ -240,8 +300,22 @@ Hard filters after each pass, in order: drop non-US → drop below `effective_fi
 **Step 8 — Compliance screen, create leads, persist lead context.** Per contact: skip if in `dq_contacts` (by domain+email or domain+LinkedIn slug); `find_contact` (email preferred, LinkedIn fallback); block if `do_not_call`/`do_not_contact`/`opt_out_email` is true, or if `find_contact` errors (fail-safe). Compute `leads_count_for_card` per company.
 
 - **8a (live only):** resolve or auto-create the Lookalike Prospects People list; `add_lead_to_people_list` for cleared contacts with phone or email.
+- **8a.5 (live only):** one batch `find_or_create_accounts` call over all final companies with ≥ 1 cleared contact, owner = running rep. Builds `rox_company_id_by_domain`, used by 8b (lead-context stamping) and 8c (dispatch). Per-domain resolution failures are counted and logged, never dispatched with a null `rox_company_id`.
 - **8b (live only, `final_companies_count > 0`):** per §9/§8, compute contact identity key (`{rep}|{domain}|{email or linkedin:slug}|{run_date}`); reuse `pursuit_id` and preserve status on a match; otherwise generate a fresh `pursuit_id`, status `open`, populate FC fields only. Retain `contact_to_pursuit_id` for Step 9 pill rendering.
 - **8b.5:** one `custom_store_set` to the per-rep key with the full merged map; dual-write to legacy if the read fell back to legacy.
+- **8c (live only):** for each final company with ≥ 1 cleared contact AND a resolved `rox_company_id`, POST once to the rep's Prism webhook (§10a). Fire-and-forget; never fails the run. Skipped entirely (with the rest of 8a.5/8c) in preview and UI test modes.
+
+  **Sub-step 6 (after all per-company dispatch loops complete):** call the built-in `set_run_name` tool once to surface dispatch status in the Runs list without opening any metadata, picking the first matching case:
+
+  | Situation | Run name annotation | `prism_dispatch_summary` |
+  | --- | --- | --- |
+  | Rep not mapped in `prism_webhooks_by_rep` | 🎣 Fresh Catch — {date} — ⚠️ Prism unmapped for rep | "Skipped: rep not mapped in `prism_webhooks_by_rep` — add the rep's Prism webhook URL to the org custom\_store to enable handoff" |
+  | Zero eligible companies to dispatch | (default run name — no annotation) | "Not applicable — zero eligible companies to dispatch" |
+  | All dispatches failed | 🎣 Fresh Catch — {date} — ⚠️ Prism 0/N failed | "All N Prism dispatches failed — see `prism_dispatch_errors`" |
+  | Partial failure | 🎣 Fresh Catch — {date} — ⚠️ Prism 2/3 (partial) | "2/3 Prism dispatches succeeded; 1 failed — see `prism_dispatch_errors`" |
+  | All succeeded | 🎣 Fresh Catch — {date} — 🔮 Prism 3/3 | "3/3 Prism dispatches succeeded" |
+
+  Preview and UI test runs never reach Step 8c, so the default `run_name` template (§16) applies unmodified for those modes. The `settings.run_name` default template also still applies to any live run where the second branch fires (zero eligible companies).
 
 **Step 9 — Generate the email-first call sheet** (design lock fc-v1.4, see §12). Rendered via `generate_webpage` with `save_to_homepage="save"`.
 
@@ -267,7 +341,7 @@ Design changes are only made by editing the instructions and bumping `design_spe
 
 ## 13. Selling signal palette and quality bar
 
-Signal emoji palette (Step 9 headline prefix): 💰 funding, 📈 growth, 🚀 launch, 👥 hiring/leadership, 🏗️ infrastructure modernization, 🤝 partnership/M&A, 🎯 strategy pivot, 💡 AI/innovation. (🎯 here is a signal-palette entry, distinct from the per-contact 🎯 Pursue action button.)
+Signal emoji palette (Step 9 headline prefix): 💰 funding, 📈 growth, 🚀 launch, 👥 hiring/leadership, 🏗️ infrastructure modernization, 🤝 partnership/M&A, 🎯 strategy pivot, 💡 AI/innovation. (🎯 here is a signal-palette entry, distinct from the per-contact 🎯 Pursue action button.) For the §10a Prism payload, each emoji maps to a `signal_type` string: 💰→`funding`, 📈→`growth`, 🚀→`launch`, 👥→`hiring`, 🏗️→`infrastructure`, 🤝→`partnership_ma`, 🎯→`strategy_pivot`, 💡→`ai_innovation`. `signal_summary` and `signal_sources` are the Step 5 headline and source URL(s) for that candidate's verified signal.
 
 Quality bar for the final list: US-based + net-new + fit ≥ threshold + verified signal + corporate-stable + standalone corporate identity (no subsidiaries) + in the running rep's territory. Never pad the list.
 
@@ -277,7 +351,7 @@ Subsidiary guard (two layers): researcher prompt AVOID list (walmartconnect.com,
 
 ## 14. Telemetry (`fresh_catch_runs` entries, live only)
 
-Per-run fields: identity (run date, rep, `run_id`); config (`config_version`, `design_spec_version` — always fc-v1.4 — all `effective_*` knobs); anchor (`anchor_mode`, `committed_opps_count`); funnel (candidates researched, cleared fit bar, `sf_dedup_hits_direct`, `parent_domain_dup_count`, non-US drops, low-fit drops, passes used, `signals_dropped`, `instability_dropped` + list with `instability_type`/source, `compliance_blocks`, `dq_contacts_skipped`); output (`final_companies_count`, `leads_count_for_card` per company, `top_company`); feedback (`feedback_signals_used`); lead context (`lead_context_records_written`, `_created`, `_updated`, `_expired_purged`, `lead_context_read_source`, `lead_context_write_key_per_rep`, `lead_context_write_key_legacy`); Pursue (`pursue_webhook_mapped_for_rep`, `pursue_pills_rendered`, `pursue_map_fetch_error`); territory (`running_rep_territory`, `territory_rejected_out_of_territory`, `territory_rejected_unknown`, `territory_rejected_ambiguous`, `territory_rejected_no_rep_territory`, `territory_rejection_events`, `territory_rep_in_both_sides`).
+Per-run fields: identity (run date, rep, `run_id`); config (`config_version`, `design_spec_version` — always fc-v1.4 — all `effective_*` knobs); anchor (`anchor_mode`, `committed_opps_count`); funnel (candidates researched, cleared fit bar, `sf_dedup_hits_direct`, `parent_domain_dup_count`, non-US drops, low-fit drops, passes used, `signals_dropped`, `instability_dropped` + list with `instability_type`/source, `compliance_blocks`, `dq_contacts_skipped`); output (`final_companies_count`, `leads_count_for_card` per company, `top_company`); feedback (`feedback_signals_used`); lead context (`lead_context_records_written`, `_created`, `_updated`, `_expired_purged`, `lead_context_read_source`, `lead_context_write_key_per_rep`, `lead_context_write_key_legacy`); Pursue (`pursue_webhook_mapped_for_rep`, `pursue_pills_rendered`, `pursue_map_fetch_error`); territory (`running_rep_territory`, `territory_rejected_out_of_territory`, `territory_rejected_unknown`, `territory_rejected_ambiguous`, `territory_rejected_no_rep_territory`, `territory_rejection_events`, `territory_rep_in_both_sides`); account resolution (`accounts_newly_created`, `accounts_found_existing`, `accounts_failed_resolve`); Prism (`prism_webhook_mapped_for_rep`, `prism_dispatch_skipped_no_map`, `prism_dispatches_attempted`, `prism_dispatches_succeeded`, `prism_dispatches_failed`, `prism_dispatch_failed_account_resolve`, `prism_dispatch_results`, `prism_dispatch_errors`, `prism_map_load_error`, `prism_dispatch_summary` — human-readable one-line status also surfaced in the run name via `set_run_name` per Step 8c sub-step 6; populated on every live run).
 
 Per-candidate territory rejection event shape (no PII):
 
@@ -299,6 +373,7 @@ Per-candidate territory rejection event shape (no PII):
 | agent\_outputs | `generate_agent_response` | Steps 3, 5, 6 |
 | agent\_outputs | `generate_webpage` | Step 9 |
 | rox\_actions | `lookup_accounts_by_domain` | Step 3 (SF dedup + parent-domain check) |
+| rox\_actions | `find_or_create_accounts` | Step 8a.5 (account resolution for Prism dispatch) |
 | rox\_actions | `find_contact` | Step 8 (compliance screen) |
 | rox\_actions | `enrich_person_details` | Available, currently unused |
 | rox\_actions | `enrich_phone` | Step 7 |
@@ -310,7 +385,7 @@ Per-candidate territory rejection event shape (no PII):
 | email | `send_email_as_user` | Step 10 |
 | http | `request_http` | Step 1.8 (Pursue webhook map fetch) |
 
-RQL (data query) tools are runtime built-ins — not attached — used in Step 2.
+RQL (data query) tools are runtime built-ins — not attached — used in Step 2. `set_run_name` is likewise a runtime built-in — used in Step 8c sub-step 6 to annotate the run name with Prism dispatch status.
 
 ## 16. Runtime settings
 
@@ -332,6 +407,10 @@ RQL (data query) tools are runtime built-ins — not attached — used in Step 2
 | Instability signal unverified | KEEP the candidate (never fail-open reject) | Yes |
 | Signal fabrication | Return null (Step 5), drop the candidate | Yes |
 | `hq_side_of_mississippi` unknown/ambiguous | REJECT (never guess, never spend tokens disambiguating) | Yes |
+| `prism_webhooks_by_rep` malformed/missing | Treat map as empty (no dispatch for any rep), log `prism_map_load_error` | Yes |
+| Rep not in `prism_webhooks_by_rep` | Skip dispatch, log `prism_dispatch_skipped_no_map` | Yes |
+| `find_or_create_accounts` fails for a company | Count under `accounts_failed_resolve`, never dispatch that company to Prism with a null `rox_company_id` | Yes |
+| Prism webhook POST returns non-2xx | Count under `prism_dispatches_failed`, capture body excerpt in `prism_dispatch_errors` | Yes |
 
 ## 18. Data-flow diagram
 
@@ -379,6 +458,7 @@ Fresh Catch is a per-user cron-triggered agent. When shared, each rep enables it
 - Integration Contract (§10) — Worker URL for 🎯 Pursue pill
 - Design Lock fc-v1.4 (§12) — email structure, tokens, copy
 - New Logo geographic territory fence (§7) — hard eligibility gate
+- Prism handoff — Fresh Catch dispatch contract (§10a) — rep→webhook map, frozen payload shape, live-only dispatch
 
 Any change to these is a spec-version bump, not a mid-run tweak.
 
